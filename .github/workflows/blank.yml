@@ -6,7 +6,7 @@ on:
 jobs:
   secure-rdp:
     runs-on: windows-latest
-    timeout-minutes: 3600
+    timeout-minutes: 36000
 
     steps:
       - name: Configure Core RDP Settings
@@ -26,56 +26,56 @@ jobs:
           netsh advfirewall firewall add rule name="RDP-Tailscale" `
             dir=in action=allow protocol=TCP localport=3389
 
-          # (Optional) Restart the Remote Desktop service to ensure changes take effect
-          Restart-Service -Name TermService -Force
+          # (Opcional) Reinicie o serviço de Área de Trabalho Remota para garantir que as alterações entrem em vigor.
+          Reiniciar-Serviço -Nome TermService -Forçar
 
-      - name: Create RDP User with Secure Password
-        run: |
-          Add-Type -AssemblyName System.Security
+      - nome : Criar usuário RDP com senha segura
+        executar : |
+          Adicionar-Tipo -AssemblyName System.Security
           $charSet = @{
-              Upper   = [char[]](65..90)      # A-Z
-              Lower   = [char[]](97..122)     # a-z
-              Number  = [char[]](48..57)      # 0-9
-              Special = ([char[]](33..47) + [char[]](58..64) +
-                         [char[]](91..96) + [char[]](123..126)) # Special characters
+              Upper = [char[]](65..90) # AZ
+              Inferior = [char[]](97..122) # az
+              Número = [char[]](48..57) # 0-9
+              Especial = ([char[]](33..47) + [char[]](58..64) +
+                         [char[]](91..96) + [char[]](123..126)) # Caracteres especiais
           }
           $rawPassword = @()
           $rawPassword += $charSet.Upper | Get-Random -Count 4
           $rawPassword += $charSet.Lower | Get-Random -Count 4
           $rawPassword += $charSet.Number | Get-Random -Count 4
           $rawPassword += $charSet.Special | Get-Random -Count 4
-          $password = -join ($rawPassword | Sort-Object { Get-Random })
-          $securePass = ConvertTo-SecureString $password -AsPlainText -Force
-          New-LocalUser -Name "RDP" -Password $securePass -AccountNeverExpires
-          Add-LocalGroupMember -Group "Administrators" -Member "RDP"
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
+          $senha = -join ($senhaRaw | Sort-Object { Get-Random })
+          $senhaSegura = ConverterParaStringSegura $senha -ComoTextoSimples -Forçar
+          Novo-UsuárioLocal -Nome "RDP" -Senha $senhaSegura -ContaNuncaExpira
+          Adicionar-MembroDoGrupoLocal -Grupo "Administradores" -Membro "RDP"
+          Adicionar-LocalGroupMember -Grupo "Usuários da Área de Trabalho Remota" -Membro "RDP"
           
-          echo "RDP_CREDS=User: RDP | Password: $password" >> $env:GITHUB_ENV
+          echo "RDP_CREDS=Usuário: RDP | Senha: $password" >> $env:GITHUB_ENV
           
-          if (-not (Get-LocalUser -Name "RDP")) {
-              Write-Error "User creation failed"
-              exit 1
+          se (-não (Get-LocalUser -Name "RDP")) {
+              Erro de gravação: "Falha na criação do usuário"
+              saída 1
           }
 
-      - name: Install Tailscale
-        run: |
+      - nome : Instalar Tailscale
+        executar : |
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
-          $installerPath = "$env:TEMP	ailscale.msi"
+          $installerPath = "$env:TEMP ailscale.msi"
           
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-          Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
-          Remove-Item $installerPath -Force
+          Iniciar-Processo msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
+          Remover-Item $installerPath -Forçar
 
-      - name: Establish Tailscale Connection
-        run: |
-          # Bring up Tailscale with the provided auth key and set a unique hostname
-          & "$env:ProgramFiles\Tailscale	ailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
+      - nome: Estabelecer conexão com a escama de cauda
+        executar: |
+          # Inicie o Tailscale com a chave de autenticação fornecida e defina um nome de host exclusivo.
+          & "$env:ProgramFiles\Tailscale ailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
           
-          # Wait for Tailscale to assign an IP
+          # Aguarde até que o Tailscale atribua um endereço IP
           $tsIP = $null
           $retries = 0
-          while (-not $tsIP -and $retries -lt 10) {
-              $tsIP = & "$env:ProgramFiles\Tailscale	ailscale.exe" ip -4
+          enquanto (-não $tsIP -e $retries -lt 10) {
+              $tsIP = & "$env:ProgramFiles\Tailscale ailscale.exe" ip -4
               Start-Sleep -Seconds 5
               $retries++
           }
